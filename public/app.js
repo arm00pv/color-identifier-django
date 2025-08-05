@@ -61,10 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please enter an image URL.');
             return;
         }
-        // Note: Loading from URL may fail due to CORS policy on the remote server.
-        // A backend proxy would be needed for a fully robust solution.
         const img = new Image();
-        img.crossOrigin = "Anonymous"; // Attempt to load cross-origin
+        img.crossOrigin = "Anonymous";
         img.onload = () => {
             originalImage = img;
             resetImageState();
@@ -76,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     captureImageBtn.addEventListener('click', () => {
-        // Temporarily use the camera view to capture a photo
         showView('camera-view');
         startCamera(true); // true indicates we are in capture mode
     });
@@ -109,14 +106,107 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Image Selection and Analysis ---
     toolAnalyzeBtn.addEventListener('click', async () => {
-        // ... (This logic remains the same as previous version)
+        const rectWidth = Math.abs(selection.endX - selection.startX);
+        const rectHeight = Math.abs(selection.endY - selection.startY);
+
+        if (!originalImage || rectWidth < 5 || rectHeight < 5) {
+            resultsContainer.innerHTML = `<p style="color: #dc3545;">Please select a region on the image first by dragging your mouse or finger.</p>`;
+            return;
+        }
+
+        resultsContainer.innerHTML = "Analyzing...";
+
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = rectWidth;
+        tempCanvas.height = rectHeight;
+        
+        const imageData = imageCtx.getImageData(
+            Math.min(selection.startX, selection.endX),
+            Math.min(selection.startY, selection.endY),
+            rectWidth,
+            rectHeight
+        );
+        tempCtx.putImageData(imageData, 0, 0);
+
+        tempCanvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('image', blob, 'selection.png');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/identify-image/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Analysis failed');
+                displayAnalysisResults(data.colors);
+            } catch (error) {
+                resultsContainer.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+            }
+        }, 'image/png');
     });
+    
     toolResetBtn.addEventListener('click', resetImageState);
 
-    // ... (Pointer event listeners for selection remain the same)
+    function getEventCoords(e) {
+        const rect = imageCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    imageCanvas.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        isSelecting = true;
+        const { x, y } = getEventCoords(e);
+        selection.startX = x;
+        selection.startY = y;
+        selectionRect.style.left = `${x}px`;
+        selectionRect.style.top = `${y}px`;
+        selectionRect.style.width = '0px';
+        selectionRect.style.height = '0px';
+        selectionRect.style.display = 'block';
+    });
+
+    imageCanvas.addEventListener('pointermove', (e) => {
+        if (!isSelecting) return;
+        e.preventDefault();
+        const { x, y } = getEventCoords(e);
+        selection.endX = x;
+        selection.endY = y;
+        selectionRect.style.width = `${Math.abs(x - selection.startX)}px`;
+        selectionRect.style.height = `${Math.abs(y - selection.startY)}px`;
+        selectionRect.style.left = `${Math.min(selection.startX, x)}px`;
+        selectionRect.style.top = `${Math.min(selection.startY, y)}px`;
+    });
+
+    imageCanvas.addEventListener('pointerup', (e) => {
+        isSelecting = false;
+    });
+
+    function displayAnalysisResults(colors) {
+        resultsContainer.innerHTML = '';
+        if (!colors || colors.length === 0) {
+            resultsContainer.innerHTML = '<p>No dominant colors found in the selection.</p>';
+            return;
+        }
+        colors.forEach(color => {
+            const colorDiv = document.createElement('div');
+            colorDiv.className = 'color-box';
+            colorDiv.style.backgroundColor = color.hex;
+            const rgb = color.rgb;
+            const brightness = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000;
+            colorDiv.style.color = brightness > 125 ? 'black' : 'white';
+            colorDiv.style.textShadow = brightness > 125 ? 'none' : '1px 1px 2px rgba(0,0,0,0.7)';
+            colorDiv.innerHTML = `<span>${color.name}</span><span>${color.hex}</span>`;
+            resultsContainer.appendChild(colorDiv);
+        });
+    }
 
     // --- Live Camera Logic ---
     startButton.addEventListener('click', () => currentStream ? stopCamera() : startCamera(false));
+    
     switchButton.addEventListener('click', () => {
         currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
         startCamera(false);
@@ -126,14 +216,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentStream) return;
         const track = currentStream.getVideoTracks()[0];
         torchOn = !torchOn;
-        track.applyConstraints({ advanced: [{ torch: torchOn }] });
+        track.applyConstraints({ advanced: [{ torch: torchOn }] })
+            .catch(err => console.error('Torch constraint failed:', err));
         flashBtn.style.backgroundColor = torchOn ? '#005a9a' : '#0072BB';
     });
 
     zoomSlider.addEventListener('input', () => {
         if (!currentStream) return;
         const track = currentStream.getVideoTracks()[0];
-        track.applyConstraints({ advanced: [{ zoom: zoomSlider.value }] });
+        track.applyConstraints({ advanced: [{ zoom: zoomSlider.value }] })
+            .catch(err => console.error('Zoom constraint failed:', err));
     });
 
     async function startCamera(isCaptureMode = false) {
@@ -145,44 +237,44 @@ document.addEventListener('DOMContentLoaded', () => {
             video.srcObject = currentStream;
             video.hidden = false;
             
-            if (isCaptureMode) {
-                // In capture mode, show a capture button instead of live analysis
-                startButton.textContent = "Take Picture";
-                startButton.onclick = () => {
-                    hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-                    const dataUrl = hiddenCanvas.toDataURL('image/png');
-                    originalImage = new Image();
-                    originalImage.onload = resetImageState;
-                    originalImage.src = dataUrl;
-                    stopCamera();
-                    showView('image-view');
-                };
-            } else {
-                // In live analysis mode
-                cameraOverlay.hidden = false;
-                switchButton.hidden = false;
-                startButton.textContent = "Stop Camera";
-                startButton.onclick = () => stopCamera();
-                analysisInterval = setInterval(analyzeLiveFrame, 500);
-            }
-
-            // Check for advanced capabilities (flash, zoom)
-            const track = currentStream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
-            
-            if (capabilities.torch) {
-                flashBtn.hidden = false;
-            }
-            if (capabilities.zoom) {
-                zoomControlContainer.hidden = false;
-                zoomSlider.min = capabilities.zoom.min;
-                zoomSlider.max = capabilities.zoom.max;
-                zoomSlider.step = capabilities.zoom.step;
-            }
-
             video.onloadedmetadata = () => {
                 hiddenCanvas.width = video.videoWidth;
                 hiddenCanvas.height = video.videoHeight;
+                
+                const track = currentStream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+                
+                if (isCaptureMode) {
+                    startButton.textContent = "Take Picture";
+                    startButton.onclick = () => {
+                        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                        const dataUrl = hiddenCanvas.toDataURL('image/png');
+                        originalImage = new Image();
+                        originalImage.onload = () => {
+                            resetImageState();
+                            showView('image-view');
+                        };
+                        originalImage.src = dataUrl;
+                        stopCamera();
+                    };
+                } else {
+                    cameraOverlay.hidden = false;
+                    switchButton.hidden = false;
+                    startButton.textContent = "Stop Camera";
+                    startButton.onclick = () => stopCamera();
+                    analysisInterval = setInterval(analyzeLiveFrame, 500);
+
+                    if (capabilities.torch) {
+                        flashBtn.hidden = false;
+                    }
+                    if (capabilities.zoom) {
+                        zoomControlContainer.hidden = false;
+                        zoomSlider.min = capabilities.zoom.min;
+                        zoomSlider.max = capabilities.zoom.max;
+                        zoomSlider.step = capabilities.zoom.step;
+                        zoomSlider.value = track.getSettings().zoom || 1;
+                    }
+                }
             };
         } catch (err) {
             liveColorLabel.textContent = `Error: ${err.name}`;
@@ -203,6 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
         startButton.textContent = "Start Camera";
         startButton.onclick = () => startCamera(false);
         liveColorLabel.textContent = '';
+        torchOn = false;
+        flashBtn.style.backgroundColor = '#0072BB';
     }
 
     async function analyzeLiveFrame() {
