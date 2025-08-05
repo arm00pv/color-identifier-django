@@ -1,0 +1,7 @@
+django
+gunicorn
+scikit-learn
+numpy
+pillow
+pandas
+django-cors-headers

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Colorfied - AI Color Identifier</title>
+    <style>
+        @keyframes color-rotate {
+            0% { color: #6e45e2; } 15% { color: #88d3ce; } 30% { color: #fa709a; }
+            45% { color: #fca5f1; } 60% { color: #72A0C1; } 75% { color: #50C878; }
+            90% { color: #FF7538; } 100% { color: #6e45e2; }
+        }
+        :root { --tooltip-bg: rgba(0, 0, 0, 0.8); --tooltip-text: white; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px; margin: auto; padding: 20px; background-color: #f4f4f9;
+            color: #333; text-align: center; -webkit-tap-highlight-color: transparent;
+        }
+        #app-title {
+            font-size: 3em; font-weight: bold; animation: color-rotate 10s infinite linear;
+            margin-bottom: 40px;
+        }
+        .view { display: none; }
+        #selection-view { display: block; }
+        .container { 
+            background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px; margin-bottom: 40px; text-align: left;
+        }
+        button, .selection-button {
+            background-color: #0072BB; color: white; border: none; padding: 12px 20px;
+            border-radius: 8px; cursor: pointer; font-size: 1.1em;
+            transition: background-color 0.2s, transform 0.2s; text-decoration: none; display: inline-block;
+        }
+        button:hover, .selection-button:hover { background-color: #005a9a; transform: translateY(-2px); }
+        .back-button { background-color: #6c757d; margin-bottom: 20px; }
+        .back-button:hover { background-color: #5a6268; }
+        .selection-button { width: 100%; text-align: center; margin-bottom: 15px; font-size: 1.2em; padding: 20px; }
+        
+        /* Image Analysis View */
+        #image-display-container { position: relative; cursor: crosshair; max-width: 100%; margin: auto; touch-action: none; }
+        #image-canvas { max-width: 100%; border-radius: 8px; border: 1px solid #ddd; display: block; }
+        #selection-rect { position: absolute; border: 2px dashed #0072BB; pointer-events: none; display: none; }
+        .toolbar { margin-top: 15px; display: flex; gap: 10px; align-items: center; justify-content: center; }
+        
+        #analysis-results-container { 
+            margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+        }
+        .color-box { 
+            width: 120px; height: 120px; margin: 5px; border: 1px solid #ccc; border-radius: 8px;
+            text-align: center; display: flex; flex-direction: column; justify-content: center;
+            color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); font-weight: bold;
+            font-size: 0.9em; transition: transform 0.2s;
+        }
+
+        /* Live Camera View */
+        #camera-container { position: relative; width: 100%; margin: auto; }
+        #video { width: 100%; border-radius: 8px; background-color: #000; display: block; }
+        #camera-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: none;
+        }
+        #camera-target { width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #live-color-label {
+            margin-top: 15px; padding: 5px 10px; background-color: var(--tooltip-bg);
+            color: var(--tooltip-text); border-radius: 6px; font-weight: bold;
+        }
+        .camera-controls { display: flex; gap: 10px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1 id="app-title">Colorfied</h1>
+
+    <!-- Main Selection View -->
+    <div id="selection-view" class="view">
+        <div class="container">
+             <button id="select-image-btn" class="selection-button">Analyze from Image</button>
+             <button id="select-camera-btn" class="selection-button">Use Live Camera</button>
+        </div>
+    </div>
+
+    <!-- Image Upload View -->
+    <div id="image-view" class="view">
+        <button class="back-button">← Back to Menu</button>
+        <div class="container">
+            <h2>Identify Colors from an Image</h2>
+            <p>Upload an image, then drag to select a region and click "Analyze".</p>
+            <input type="file" id="image-input" accept="image/*" required>
+            <div id="image-display-container">
+                <canvas id="image-canvas"></canvas>
+                <div id="selection-rect"></div>
+            </div>
+            <div class="toolbar">
+                <button id="tool-analyze">Analyze Selection</button>
+                <button id="tool-reset">Reset</button>
+            </div>
+            <div id="analysis-results-container"></div>
+        </div>
+    </div>
+
+    <!-- Live Camera View -->
+    <div id="camera-view" class="view">
+        <button class="back-button">← Back to Menu</button>
+        <div class="container">
+            <h2>Live Camera Identification</h2>
+            <div class="camera-controls">
+                <button id="start-camera">Start Camera</button>
+                <button id="switch-camera" hidden>Switch Camera</button>
+            </div>
+            <div id="camera-container">
+                <video id="video" playsinline autoplay muted hidden></video>
+                <div id="camera-overlay" hidden>
+                    <div id="camera-target"></div>
+                    <div id="live-color-label"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
