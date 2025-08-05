@@ -5,6 +5,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from PIL import Image
 import numpy as np
 import os
+from pathlib import Path # <-- This import was missing
 
 class ColorIdentifier:
     def __init__(self, color_data_path):
@@ -59,19 +60,23 @@ class ColorIdentifier:
             color_name = self.get_color_name(tuple(rgb))
             # Convert the RGB tuple to a hex code for display
             hex_code = '#%02x%02x%02x' % tuple(rgb)
+            
+            # **THE FIX IS HERE**:
+            # We explicitly convert each NumPy number (r, g, b) to a standard
+            # Python integer using int() before adding it to the results.
             results.append({
                 'name': color_name,
                 'hex': hex_code,
-                'rgb': list(rgb)
+                'rgb': [int(c) for c in rgb]
             })
             
         return results
 
 # --- Global Instance ---
 # Get the base directory of the Django project
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 # Construct the path to the colors.csv file
-CSV_FILE_PATH = os.path.join(BASE_DIR, 'colors.csv')
+CSV_FILE_PATH = BASE_DIR / 'colors.csv'
 
 # Create a single, global instance of the ColorIdentifier.
 # This is crucial for performance, as the model will only be trained once
