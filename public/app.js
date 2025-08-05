@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentFacingMode: 'user',
         analysisInterval: null,
         torchOn: false,
-        isCaptureMode: false,
         originalImage: null,
         selection: { startX: 0, startY: 0, endX: 0, endY: 0 },
         isSelecting: false,
@@ -20,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         selectCameraBtn: document.getElementById('select-camera-btn'),
         backButtons: document.querySelectorAll('.back-button'),
         imageInput: document.getElementById('image-input'),
-        captureImageBtn: document.getElementById('capture-image-btn'),
         imageUrlInput: document.getElementById('image-url-input'),
         loadUrlBtn: document.getElementById('load-url-btn'),
         imageCanvas: document.getElementById('image-canvas'),
@@ -135,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Camera Logic ---
     async function startCamera() {
-        if (appState.currentStream) await stopCamera(true); // Ensure previous stream is stopped
+        if (appState.currentStream) await stopCamera(true);
         
         const constraints = { video: { facingMode: appState.currentFacingMode } };
         try {
@@ -147,23 +145,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const track = appState.currentStream.getVideoTracks()[0];
             const capabilities = track.getCapabilities();
             
-            if (appState.isCaptureMode) {
-                elements.startButton.textContent = "Take Picture";
-                elements.switchButton.hidden = false;
-            } else {
-                elements.cameraOverlay.hidden = false;
-                elements.switchButton.hidden = false;
-                elements.startButton.textContent = "Stop Camera";
-                appState.analysisInterval = setInterval(analyzeLiveFrame, 500);
+            elements.cameraOverlay.hidden = false;
+            elements.switchButton.hidden = false;
+            elements.startButton.textContent = "Stop Camera";
+            appState.analysisInterval = setInterval(analyzeLiveFrame, 500);
 
-                if (capabilities && capabilities.torch) elements.flashBtn.hidden = false;
-                if (capabilities && capabilities.zoom) {
-                    elements.zoomControlContainer.hidden = false;
-                    elements.zoomSlider.min = capabilities.zoom.min;
-                    elements.zoomSlider.max = capabilities.zoom.max;
-                    elements.zoomSlider.step = capabilities.zoom.step;
-                    elements.zoomSlider.value = track.getSettings().zoom || 1;
-                }
+            if (capabilities && capabilities.torch) elements.flashBtn.hidden = false;
+            if (capabilities && capabilities.zoom) {
+                elements.zoomControlContainer.hidden = false;
+                elements.zoomSlider.min = capabilities.zoom.min;
+                elements.zoomSlider.max = capabilities.zoom.max;
+                elements.zoomSlider.step = capabilities.zoom.step;
+                elements.zoomSlider.value = track.getSettings().zoom || 1;
             }
         } catch (err) {
             elements.liveColorLabel.textContent = `Error: ${err.name}`;
@@ -171,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function stopCamera(keepCaptureMode = false) {
+    function stopCamera() {
         return new Promise(resolve => {
             if (appState.currentStream) {
                 appState.currentStream.getTracks().forEach(track => track.stop());
@@ -188,8 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.liveColorLabel.textContent = '';
             appState.torchOn = false;
             elements.flashBtn.style.backgroundColor = '#0072BB';
-            
-            if (!keepCaptureMode) appState.isCaptureMode = false;
             resolve();
         });
     }
@@ -197,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function analyzeLiveFrame() {
         if (!appState.currentStream) return;
         const { videoWidth, videoHeight } = elements.video;
-        if (videoWidth === 0) return; // Wait for video to have dimensions
+        if (videoWidth === 0) return;
         elements.hiddenCanvas.width = videoWidth;
         elements.hiddenCanvas.height = videoHeight;
         elements.hiddenCtx.drawImage(elements.video, 0, 0, videoWidth, videoHeight);
@@ -218,7 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     elements.selectImageBtn.addEventListener('click', () => showView('image-view'));
-    elements.selectCameraBtn.addEventListener('click', () => showView('camera-view'));
+    elements.selectCameraBtn.addEventListener('click', () => {
+        showView('camera-view');
+        startCamera();
+    });
     elements.backButtons.forEach(button => button.addEventListener('click', () => {
         stopCamera().then(() => {
             showView('selection-view');
@@ -246,12 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
         img.onload = () => { appState.originalImage = img; resetImageState(); };
         img.onerror = () => alert('Could not load image from this URL (CORS policy).');
         img.src = url;
-    });
-
-    elements.captureImageBtn.addEventListener('click', () => {
-        appState.isCaptureMode = true;
-        showView('camera-view');
-        startCamera();
     });
 
     elements.toolAnalyzeBtn.addEventListener('click', analyzeSelection);
@@ -284,22 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.startButton.addEventListener('click', () => {
         if (appState.currentStream) {
-            if (appState.isCaptureMode) {
-                const { videoWidth, videoHeight } = elements.video;
-                elements.hiddenCanvas.width = videoWidth;
-                elements.hiddenCanvas.height = videoHeight;
-                elements.hiddenCtx.drawImage(elements.video, 0, 0, videoWidth, videoHeight);
-                const dataUrl = elements.hiddenCanvas.toDataURL('image/png');
-                
-                stopCamera().then(() => {
-                    showView('image-view');
-                    appState.originalImage = new Image();
-                    appState.originalImage.onload = resetImageState;
-                    appState.originalImage.src = dataUrl;
-                });
-            } else {
-                stopCamera();
-            }
+            stopCamera();
         } else {
             startCamera();
         }
@@ -330,8 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getEventCoords(e) {
         const rect = elements.imageCanvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const clientX = e.touches ? e.touches[0].clientX : e.touches[0].clientY;
         return { x: clientX - rect.left, y: clientY - rect.top };
     }
 });
