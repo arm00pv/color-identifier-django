@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectionRect.style.display = 'none';
         resultsContainer.innerHTML = '';
         selection = { startX: 0, startY: 0, endX: 0, endY: 0 };
+        imageInput.value = ''; // FIX: Clears the file input field
     }
 
     // --- Image Selection and Analysis ---
@@ -217,8 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dataUrl = hiddenCanvas.toDataURL('image/png');
                 originalImage = new Image();
                 originalImage.onload = () => {
-                    resetImageState();
+                    // FIX: Show the view first, then reset the state which draws the image
                     showView('image-view');
+                    resetImageState();
                 };
                 originalImage.src = dataUrl;
                 stopCamera();
