@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFacingMode = 'user';
     let analysisInterval;
     let torchOn = false;
+    let isCaptureMode = false;
 
     // --- View Navigation ---
     function showView(viewId) {
@@ -74,8 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     captureImageBtn.addEventListener('click', () => {
+        isCaptureMode = true; // Set a flag for capture mode
         showView('camera-view');
-        startCamera(true); // true indicates we are in capture mode
+        startCamera();
     });
 
     function handleFile(file) {
@@ -205,11 +207,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Live Camera Logic ---
-    startButton.addEventListener('click', () => currentStream ? stopCamera() : startCamera(false));
+    startButton.addEventListener('click', () => {
+        if (currentStream) {
+            if (isCaptureMode) {
+                // If in capture mode, this button takes the picture
+                hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                const dataUrl = hiddenCanvas.toDataURL('image/png');
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    resetImageState();
+                    showView('image-view');
+                };
+                originalImage.src = dataUrl;
+                stopCamera();
+            } else {
+                // Otherwise, it stops the live stream
+                stopCamera();
+            }
+        } else {
+            // If no stream, start the camera
+            startCamera();
+        }
+    });
     
     switchButton.addEventListener('click', () => {
         currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-        startCamera(false);
+        startCamera();
     });
 
     flashBtn.addEventListener('click', () => {
@@ -228,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.error('Zoom constraint failed:', err));
     });
 
-    async function startCamera(isCaptureMode = false) {
+    async function startCamera() {
         if (currentStream) stopCamera();
         
         const constraints = { video: { facingMode: currentFacingMode } };
@@ -246,22 +269,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (isCaptureMode) {
                     startButton.textContent = "Take Picture";
-                    startButton.onclick = () => {
-                        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-                        const dataUrl = hiddenCanvas.toDataURL('image/png');
-                        originalImage = new Image();
-                        originalImage.onload = () => {
-                            resetImageState();
-                            showView('image-view');
-                        };
-                        originalImage.src = dataUrl;
-                        stopCamera();
-                    };
+                    switchButton.hidden = false; // Allow switching camera before taking picture
                 } else {
                     cameraOverlay.hidden = false;
                     switchButton.hidden = false;
                     startButton.textContent = "Stop Camera";
-                    startButton.onclick = () => stopCamera();
                     analysisInterval = setInterval(analyzeLiveFrame, 500);
 
                     if (capabilities.torch) {
@@ -293,9 +305,9 @@ document.addEventListener('DOMContentLoaded', () => {
         flashBtn.hidden = true;
         zoomControlContainer.hidden = true;
         startButton.textContent = "Start Camera";
-        startButton.onclick = () => startCamera(false);
         liveColorLabel.textContent = '';
         torchOn = false;
+        isCaptureMode = false; // Reset capture mode flag
         flashBtn.style.backgroundColor = '#0072BB';
     }
 
