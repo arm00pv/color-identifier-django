@@ -215,11 +215,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 hiddenCanvas.height = video.videoHeight;
                 hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
                 const dataUrl = hiddenCanvas.toDataURL('image/png');
+                
+                // This sequence is more robust for mobile
+                stopCamera(); // Stop the camera first
+                showView('image-view'); // Switch views
+                
                 originalImage = new Image();
                 originalImage.onload = () => {
-                    stopCamera(); // Stop the camera first
-                    showView('image-view'); // Then switch views
-                    resetImageState(); // Finally, draw the new image
+                    resetImageState(); // Draw the new image
                 };
                 originalImage.src = dataUrl;
             } else {
