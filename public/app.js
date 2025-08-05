@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectionRect.style.display = 'none';
         resultsContainer.innerHTML = '';
         selection = { startX: 0, startY: 0, endX: 0, endY: 0 };
-        imageInput.value = ''; // FIX: Clears the file input field
+        imageInput.value = '';
     }
 
     // --- Image Selection and Analysis ---
@@ -211,25 +211,21 @@ document.addEventListener('DOMContentLoaded', () => {
     startButton.addEventListener('click', () => {
         if (currentStream) {
             if (isCaptureMode) {
-                // If in capture mode, this button takes the picture
                 hiddenCanvas.width = video.videoWidth;
                 hiddenCanvas.height = video.videoHeight;
                 hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
                 const dataUrl = hiddenCanvas.toDataURL('image/png');
                 originalImage = new Image();
                 originalImage.onload = () => {
-                    // FIX: Show the view first, then reset the state which draws the image
-                    showView('image-view');
-                    resetImageState();
+                    stopCamera(); // Stop the camera first
+                    showView('image-view'); // Then switch views
+                    resetImageState(); // Finally, draw the new image
                 };
                 originalImage.src = dataUrl;
-                stopCamera();
             } else {
-                // Otherwise, it stops the live stream
                 stopCamera();
             }
         } else {
-            // If no stream, start the camera
             startCamera();
         }
     });
@@ -266,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function startCamera() {
-        if (currentStream) await stopCamera();
+        if (currentStream) await stopCamera(true); // FIX: Pass true to keep capture mode
         
         const constraints = { video: { facingMode: currentFacingMode } };
         try {
@@ -274,14 +270,14 @@ document.addEventListener('DOMContentLoaded', () => {
             video.srcObject = currentStream;
             video.hidden = false;
             
-            await video.play(); // Explicitly play the video for mobile compatibility
+            await video.play();
 
             const track = currentStream.getVideoTracks()[0];
             const capabilities = track.getCapabilities();
             
             if (isCaptureMode) {
                 startButton.textContent = "Take Picture";
-                switchButton.hidden = false; // Allow switching camera before taking picture
+                switchButton.hidden = false;
             } else {
                 cameraOverlay.hidden = false;
                 switchButton.hidden = false;
@@ -305,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function stopCamera() {
+    async function stopCamera(keepCaptureMode = false) { // FIX: Add parameter
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
         }
@@ -320,8 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
         startButton.textContent = "Start Camera";
         liveColorLabel.textContent = '';
         torchOn = false;
-        isCaptureMode = false; // Reset capture mode flag
         flashBtn.style.backgroundColor = '#0072BB';
+        
+        if (!keepCaptureMode) { // FIX: Only reset if we are not just switching cameras
+            isCaptureMode = false;
+        }
     }
 
     async function analyzeLiveFrame() {
