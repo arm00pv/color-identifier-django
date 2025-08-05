@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Camera Logic ---
     async function startCamera() {
-        if (appState.currentStream) await stopCamera(true);
+        if (appState.currentStream) await stopCamera();
         
         const constraints = { video: { facingMode: appState.currentFacingMode } };
         try {
