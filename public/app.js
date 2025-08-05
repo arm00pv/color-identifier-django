@@ -216,13 +216,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
                 const dataUrl = hiddenCanvas.toDataURL('image/png');
                 
-                // This sequence is more robust for mobile
-                stopCamera(); // Stop the camera first
-                showView('image-view'); // Switch views
+                stopCamera();
+                showView('image-view');
                 
                 originalImage = new Image();
                 originalImage.onload = () => {
-                    resetImageState(); // Draw the new image
+                    resetImageState();
                 };
                 originalImage.src = dataUrl;
             } else {
