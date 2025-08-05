@@ -211,6 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentStream) {
             if (isCaptureMode) {
                 // If in capture mode, this button takes the picture
+                hiddenCanvas.width = video.videoWidth;
+                hiddenCanvas.height = video.videoHeight;
                 hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
                 const dataUrl = hiddenCanvas.toDataURL('image/png');
                 originalImage = new Image();
@@ -238,6 +240,11 @@ document.addEventListener('DOMContentLoaded', () => {
     flashBtn.addEventListener('click', () => {
         if (!currentStream) return;
         const track = currentStream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities();
+        if (!capabilities.torch) {
+            console.log("Torch/Flash not supported on this device.");
+            return;
+        }
         torchOn = !torchOn;
         track.applyConstraints({ advanced: [{ torch: torchOn }] })
             .catch(err => console.error('Torch constraint failed:', err));
@@ -247,12 +254,17 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomSlider.addEventListener('input', () => {
         if (!currentStream) return;
         const track = currentStream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities();
+        if (!capabilities.zoom) {
+            console.log("Zoom not supported on this device.");
+            return;
+        }
         track.applyConstraints({ advanced: [{ zoom: zoomSlider.value }] })
             .catch(err => console.error('Zoom constraint failed:', err));
     });
 
     async function startCamera() {
-        if (currentStream) stopCamera();
+        if (currentStream) await stopCamera();
         
         const constraints = { video: { facingMode: currentFacingMode } };
         try {
@@ -260,42 +272,41 @@ document.addEventListener('DOMContentLoaded', () => {
             video.srcObject = currentStream;
             video.hidden = false;
             
-            video.onloadedmetadata = () => {
-                hiddenCanvas.width = video.videoWidth;
-                hiddenCanvas.height = video.videoHeight;
-                
-                const track = currentStream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-                
-                if (isCaptureMode) {
-                    startButton.textContent = "Take Picture";
-                    switchButton.hidden = false; // Allow switching camera before taking picture
-                } else {
-                    cameraOverlay.hidden = false;
-                    switchButton.hidden = false;
-                    startButton.textContent = "Stop Camera";
-                    analysisInterval = setInterval(analyzeLiveFrame, 500);
+            await video.play(); // Explicitly play the video for mobile compatibility
 
-                    if (capabilities.torch) {
-                        flashBtn.hidden = false;
-                    }
-                    if (capabilities.zoom) {
-                        zoomControlContainer.hidden = false;
-                        zoomSlider.min = capabilities.zoom.min;
-                        zoomSlider.max = capabilities.zoom.max;
-                        zoomSlider.step = capabilities.zoom.step;
-                        zoomSlider.value = track.getSettings().zoom || 1;
-                    }
+            const track = currentStream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            
+            if (isCaptureMode) {
+                startButton.textContent = "Take Picture";
+                switchButton.hidden = false; // Allow switching camera before taking picture
+            } else {
+                cameraOverlay.hidden = false;
+                switchButton.hidden = false;
+                startButton.textContent = "Stop Camera";
+                analysisInterval = setInterval(analyzeLiveFrame, 500);
+
+                if (capabilities.torch) {
+                    flashBtn.hidden = false;
                 }
-            };
+                if (capabilities.zoom) {
+                    zoomControlContainer.hidden = false;
+                    zoomSlider.min = capabilities.zoom.min;
+                    zoomSlider.max = capabilities.zoom.max;
+                    zoomSlider.step = capabilities.zoom.step;
+                    zoomSlider.value = track.getSettings().zoom || 1;
+                }
+            }
         } catch (err) {
             liveColorLabel.textContent = `Error: ${err.name}`;
             console.error("Camera access error:", err);
         }
     }
 
-    function stopCamera() {
-        if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+    async function stopCamera() {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
         clearInterval(analysisInterval);
         currentStream = null;
         video.srcObject = null;
@@ -313,6 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function analyzeLiveFrame() {
         if (!currentStream) return;
+        hiddenCanvas.width = video.videoWidth;
+        hiddenCanvas.height = video.videoHeight;
         const centerX = hiddenCanvas.width / 2;
         const centerY = hiddenCanvas.height / 2;
         hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);

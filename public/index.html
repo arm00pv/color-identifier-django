@@ -54,8 +54,18 @@
         }
 
         /* Live Camera View */
-        #camera-container { position: relative; width: 100%; margin: auto; }
-        #video { width: 100%; border-radius: 8px; background-color: #000; display: block; }
+        #camera-wrapper {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: #000;
+        }
+        #video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
         #camera-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -86,7 +96,7 @@
         <button class="back-button">← Back to Menu</button>
         <div class="container">
             <h2>Identify Colors from an Image</h2>
-            <p>Load an image from your device, a URL, or capture a new one.</p>
+            <p>Load an image, then drag to select a region and click "Analyze".</p>
             <div class="input-group">
                 <input type="file" id="image-input" accept="image/*" title="Load from device">
                 <button id="capture-image-btn">Use Camera</button>
@@ -121,7 +131,7 @@
                     <input type="range" id="zoom-slider" min="1" max="5" step="0.1">
                 </div>
             </div>
-            <div id="camera-container">
+            <div id="camera-wrapper">
                 <video id="video" playsinline autoplay muted hidden></video>
                 <div id="camera-overlay" hidden>
                     <div id="camera-target"></div>
