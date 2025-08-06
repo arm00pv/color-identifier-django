@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.resultsContainer.innerHTML = "Analyzing...";
 
-        const imageData = elements.imageCtx.getImageData(Math.min(startX, endX), Math.min(startY, endY), rectWidth, rectHeight);
+        const imageData = elements.imageCtx.getImageData(Math.min(startX, endY), Math.min(startY, endY), rectWidth, rectHeight);
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = rectWidth;
         tempCanvas.height = rectHeight;
@@ -303,7 +303,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getEventCoords(e) {
         const rect = elements.imageCanvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.touches[0].clientY;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        // **FIX IS HERE**: Correctly get the Y coordinate for both mouse and touch events.
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: clientX - rect.left, y: clientY - rect.top };
     }
 });
