@@ -25,15 +25,18 @@ class ColorIdentifier:
         prediction = self.knn.predict([rgb_tuple])
         return prediction[0]
 
-    def get_dominant_colors(self, image_file, n_colors=8): # <-- Increased from 5 to 8 for better accuracy
+    def get_dominant_colors(self, image_file, n_colors=12):
         """
         Finds the N most dominant colors in an image file.
         """
         img = Image.open(image_file).convert('RGB')
-        img.thumbnail((150, 150)) # Increased thumbnail size slightly for more detail
+        # Using a larger thumbnail provides more data for a more accurate analysis.
+        img.thumbnail((200, 200)) 
         
         pixels = np.array(img).reshape(-1, 3)
         
+        # **ACCURACY**: Using 'auto' (which defaults to 10) runs the algorithm
+        # more times to find a better, more accurate result.
         kmeans = KMeans(n_clusters=n_colors, n_init='auto', random_state=42)
         kmeans.fit(pixels)
         
