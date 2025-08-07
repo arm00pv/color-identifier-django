@@ -35,12 +35,15 @@ document.addEventListener('DOMContentLoaded', () => {
         video: document.getElementById('video'),
         cameraOverlay: document.getElementById('camera-overlay'),
         liveColorLabel: document.getElementById('live-color-label'),
+        cameraToolbar: document.getElementById('camera-toolbar'),
+        captureBtn: document.getElementById('capture-btn'),
+        cameraResultsContainer: document.getElementById('camera-results-container'),
         hiddenCanvas: document.createElement('canvas'),
     };
     elements.hiddenCtx = elements.hiddenCanvas.getContext('2d');
 
     // --- API Helper ---
-    async function fetchDominantColors(blob) {
+    async function fetchDominantColors(blob, n_colors = 5) {
         const formData = new FormData();
         formData.append('image', blob, 'selection.png');
         const response = await fetch(`${API_BASE_URL}/api/identify-image/`, {
@@ -68,10 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(viewId).style.display = 'block';
     }
 
-    function displayAnalysisResults(colors) {
-        elements.resultsContainer.innerHTML = '';
+    function displayAnalysisResults(colors, container) {
+        container.innerHTML = '';
         if (!colors || colors.length === 0) {
-            elements.resultsContainer.innerHTML = '<p>No dominant colors found in the selection.</p>';
+            container.innerHTML = '<p>No dominant colors found.</p>';
             return;
         }
         colors.forEach(color => {
@@ -82,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             colorDiv.style.color = brightness > 125 ? 'black' : 'white';
             colorDiv.style.textShadow = brightness > 125 ? 'none' : '1px 1px 2px rgba(0,0,0,0.7)';
             colorDiv.innerHTML = `<span>${color.name}</span><span>${color.hex}</span>`;
-            elements.resultsContainer.appendChild(colorDiv);
+            container.appendChild(colorDiv);
         });
     }
 
@@ -123,8 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tempCanvas.toBlob(async (blob) => {
             try {
-                const colors = await fetchDominantColors(blob);
-                displayAnalysisResults(colors);
+                const colors = await fetchDominantColors(blob, 5);
+                displayAnalysisResults(colors, elements.resultsContainer);
             } catch (error) {
                 elements.resultsContainer.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
             }
@@ -132,6 +135,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Camera Logic ---
+    async function captureAndAnalyze() {
+        if (!appState.currentStream) return;
+
+        elements.cameraResultsContainer.innerHTML = 'Capturing...';
+        const { videoWidth, videoHeight } = elements.video;
+        elements.hiddenCanvas.width = videoWidth;
+        elements.hiddenCanvas.height = videoHeight;
+        elements.hiddenCtx.drawImage(elements.video, 0, 0, videoWidth, videoHeight);
+
+        elements.hiddenCanvas.toBlob(async (blob) => {
+            try {
+                elements.cameraResultsContainer.innerHTML = 'Analyzing...';
+                const colors = await fetchDominantColors(blob, 12);
+                displayAnalysisResults(colors, elements.cameraResultsContainer);
+            } catch (error) {
+                elements.cameraResultsContainer.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+            }
+        }, 'image/png');
+    }
+
     async function startCamera() {
         if (appState.currentStream) await stopCamera();
         
@@ -147,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             elements.cameraOverlay.hidden = false;
             elements.switchButton.hidden = false;
+            elements.cameraToolbar.hidden = false;
             elements.startButton.textContent = "Stop Camera";
             appState.analysisInterval = setInterval(analyzeLiveFrame, 500);
 
@@ -177,6 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.switchButton.hidden = true;
             elements.flashBtn.hidden = true;
             elements.zoomControlContainer.hidden = true;
+            elements.cameraToolbar.hidden = true;
+            elements.cameraResultsContainer.innerHTML = '';
             elements.startButton.textContent = "Start Camera";
             elements.liveColorLabel.textContent = '';
             appState.torchOn = false;
@@ -244,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.toolAnalyzeBtn.addEventListener('click', analyzeSelection);
     elements.toolResetBtn.addEventListener('click', resetImageState);
+    elements.captureBtn.addEventListener('click', captureAndAnalyze);
 
     elements.imageCanvas.addEventListener('pointerdown', (e) => {
         e.preventDefault();
