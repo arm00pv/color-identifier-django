@@ -31,13 +31,13 @@ class ColorIdentifier:
         """
         img = Image.open(image_file).convert('RGB')
         # Using a larger thumbnail provides more data for a more accurate analysis.
-        img.thumbnail((200, 200)) 
+        img.thumbnail((400, 400))
         
         pixels = np.array(img).reshape(-1, 3)
         
         # **ACCURACY**: Using 'auto' (which defaults to 10) runs the algorithm
         # more times to find a better, more accurate result.
-        kmeans = KMeans(n_clusters=n_colors, n_init='auto', random_state=42)
+        kmeans = KMeans(n_clusters=n_colors, n_init=25, random_state=42)
         kmeans.fit(pixels)
         
         dominant_colors_rgb = kmeans.cluster_centers_.astype(int)
