@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_BASE_URL = "https://color-identifier-django.onrender.com";
+    const API_BASE_URL = "";
 
     // --- Centralized State Management ---
     const appState = {

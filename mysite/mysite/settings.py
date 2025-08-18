@@ -32,6 +32,7 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 # --- Add your Firebase Hosting URL here ---
 # This tells your backend that it's okay to accept requests from your frontend website.
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "https://colors-dc6d2.web.app", # Replace with your actual Firebase URL if different
 ]
