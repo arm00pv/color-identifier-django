@@ -2,11 +2,10 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # This URL will be for the image upload function
-    path('identify-image/', views.identify_from_image, name='identify_from_image'),
-    
-    # This URL will be for the live camera function
-    path('identify-live/', views.identify_from_live, name='identify_from_live'),
-
-    path('identify-rgb/', views.identify_from_rgb, name='identify_from_rgb'),
+    path('', views.frontend, name='frontend'),
+    path('api/identify/image/', views.IdentifyFromImageAPI.as_view(), name='identify_image'),
+    path('api/identify/live/', views.IdentifyFromLiveAPI.as_view(), name='identify_live'),
+    path('api/identify/rgb/', views.IdentifyFromRgbAPI.as_view(), name='identify_rgb'),
+    path('api/task/<str:task_id>/', views.TaskStatusAPI.as_view(), name='task_status'),
+    path('api/history/', views.ScanHistoryAPI.as_view(), name='scan_history'),
 ]
