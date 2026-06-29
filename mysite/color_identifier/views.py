@@ -1,16 +1,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import render
 from django.core.files.storage import default_storage
+from django.contrib.auth.models import User
 import base64
 from io import BytesIO
 import uuid
 import os
 
 from .serializers import ImageUploadSerializer, Base64ImageSerializer, RGBSerializer, ScanSerializer
-from .models import Scan
+from .models import Scan, UserProfile
 from .color_logic import color_identifier
 from .tasks import identify_dominant_colors_task
 from celery.result import AsyncResult
@@ -53,11 +55,54 @@ class IdentifyFromLiveAPI(APIView):
 
 class TaskStatusAPI(APIView):
     def get(self, request, task_id):
-        task_result = AsyncResult(task_id)
-        if task_result.ready():
-            result = task_result.result
-            return Response({'status': 'completed', 'colors': result})
-        return Response({'status': 'processing'})
+        result = AsyncResult(task_id)
+        if result.ready():
+            return Response({'status': 'completed', 'colors': result.result})
+        return Response({'status': 'pending'})
+
+
+class RegisterAPI(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        if not username or not password:
+            return Response({'error': 'Missing credentials'}, status=400)
+        if User.objects.filter(username=username).exists():
+            return Response({'error': 'User exists'}, status=400)
+        
+        user = User.objects.create_user(username=username, password=password)
+        return Response({'status': 'success', 'user_id': user.id})
+
+class SubscriptionCheckAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        profile = request.user.profile
+        return Response({
+            'is_premium': profile.is_premium,
+            'free_scans_this_month': profile.free_scans_this_month
+        })
+        
+    def post(self, request):
+        # Action to consume a scan
+        action = request.data.get('action')
+        profile = request.user.profile
+        
+        if profile.is_premium:
+            return Response({'allowed': True})
+            
+        if action == 'live_feed':
+            return Response({'allowed': False, 'error': 'Live feed requires Premium subscription.'}, status=403)
+            
+        if action == 'photo_scan':
+            if profile.free_scans_this_month >= 5:
+                return Response({'allowed': False, 'error': 'Monthly limit of 5 scans reached. Please upgrade to Premium.'}, status=403)
+            profile.free_scans_this_month += 1
+            profile.save()
+            return Response({'allowed': True, 'remaining': 5 - profile.free_scans_this_month})
+            
+        return Response({'error': 'Unknown action'}, status=400)
 
 class IdentifyFromRgbAPI(APIView):
     def post(self, request):

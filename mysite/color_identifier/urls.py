@@ -1,11 +1,14 @@
 from django.urls import path
-from . import views
+from .views import (
+    UploadImageAPI, TaskStatusAPI, IdentifyFromRgbAPI, ScanHistoryAPI,
+    RegisterAPI, SubscriptionCheckAPI
+)
 
 urlpatterns = [
-    path('', views.frontend, name='frontend'),
-    path('api/identify/image/', views.IdentifyFromImageAPI.as_view(), name='identify_image'),
-    path('api/identify/live/', views.IdentifyFromLiveAPI.as_view(), name='identify_live'),
-    path('api/identify/rgb/', views.IdentifyFromRgbAPI.as_view(), name='identify_rgb'),
-    path('api/task/<str:task_id>/', views.TaskStatusAPI.as_view(), name='task_status'),
-    path('api/history/', views.ScanHistoryAPI.as_view(), name='scan_history'),
+    path('identify/image/', UploadImageAPI.as_view(), name='identify_image'),
+    path('identify/rgb/', IdentifyFromRgbAPI.as_view(), name='identify_rgb'),
+    path('task/<str:task_id>/', TaskStatusAPI.as_view(), name='task_status'),
+    path('history/', ScanHistoryAPI.as_view(), name='scan_history'),
+    path('register/', RegisterAPI.as_view(), name='register'),
+    path('subscription/check/', SubscriptionCheckAPI.as_view(), name='sub_check'),
 ]

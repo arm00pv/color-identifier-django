@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:image/image.dart' as img;
 import 'live_camera_screen.dart';
+import 'paywall_screen.dart';
 import '../services/color_logic.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,14 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ColorData> _colors = [];
 
   Future<void> _pickImage(ImageSource source) async {
+    final subStatus = await AuthService.checkSubscription('photo_scan');
+    if (subStatus['allowed'] != true) {
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => PaywallScreen(reason: subStatus['error'] ?? 'Limit reached')));
+      }
+      return;
+    }
+
     final XFile? pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
       setState(() {
@@ -105,8 +115,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 20),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveCameraScreen()));
+                    onPressed: () async {
+                      final subStatus = await AuthService.checkSubscription('live_feed');
+                      if (subStatus['allowed'] == true) {
+                        if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveCameraScreen()));
+                      } else {
+                        if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => PaywallScreen(reason: subStatus['error'] ?? 'Premium required')));
+                      }
                     },
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('Live Camera'),
