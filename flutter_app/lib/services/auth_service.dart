@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'dart:io' show Platform;
 
 class AuthService {
   static const String baseUrl = 'http://127.0.0.1:8300/api';
@@ -9,6 +11,16 @@ class AuthService {
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('jwt_token');
+    
+    // RevenueCat Initialization
+    await Purchases.setLogLevel(LogLevel.debug);
+    PurchasesConfiguration configuration;
+    if (Platform.isAndroid) {
+      configuration = PurchasesConfiguration("goog_api_key_here");
+    } else {
+      configuration = PurchasesConfiguration("appl_api_key_here");
+    }
+    await Purchases.configure(configuration);
   }
 
   static bool get isLoggedIn => _token != null;
@@ -25,6 +37,10 @@ class AuthService {
         _token = data['access'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', _token!);
+        
+        // Log into RevenueCat securely using Django username as App User ID
+        await Purchases.logIn(username);
+        
         return true;
       }
     } catch (e) {
@@ -51,6 +67,7 @@ class AuthService {
     _token = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
+    await Purchases.logOut();
   }
 
   static Future<Map<String, dynamic>> checkSubscription(String action) async {

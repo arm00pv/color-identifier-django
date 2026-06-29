@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:flutter/services.dart';
 
 class PaywallScreen extends StatelessWidget {
   final String reason;
@@ -57,9 +59,21 @@ class PaywallScreen extends StatelessWidget {
         side: isPopular ? const BorderSide(color: Colors.amber, width: 2) : BorderSide.none,
       ),
       child: InkWell(
-        onTap: () {
-          // Here you would trigger RevenueCat purchases
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Gateway (Mock)')));
+        onTap: () async {
+          try {
+            // Note: In production you would fetch Offerings and pass the Package here.
+            // This is a placeholder demonstrating RevenueCat integration.
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Processing purchase with RevenueCat...')));
+            // CustomerInfo customerInfo = await Purchases.purchasePackage(package);
+            // if (customerInfo.entitlements.all["premium"]?.isActive == true) { 
+            //   // Unlock features
+            // }
+          } on PlatformException catch (e) {
+            final errorCode = PurchasesErrorHelper.getErrorCode(e);
+            if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Unknown error')));
+            }
+          }
         },
         child: Container(
           width: 300,

@@ -41,6 +41,7 @@ dependencies:
   csv: ^8.0.0
   image: ^4.9.1
   shared_preferences: ^2.5.5
+  purchases_flutter: ^10.3.0
 
 dev_dependencies:
   flutter_test:
